@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}FoodPlan - Название рецепта{% endblock %}
+
+{% block nav_buttons %}
+<a href="{% url 'index' %}" class="btn btn-outline-success me-2 shadow-none foodplan_green foodplan__border_green">Назад</a>
+{% endblock %}
+
+{% block content %}
+<section>
+    <div class="container">
+        <div class="row">
+            <div class="col-12 col-md-4 d-flex justify-content-center">
+                <div class="card foodplan__card_borderless">
+                    <img src="{% static 'img/circle1.png' %}" alt="Рецепт">
+                </div>
+            </div>
+            <div class="col-12 col-md-8 d-flex flex-column justify-content-between">
+                <div class="row">
+                    <h2>Название рецепта</h2>
+                    <div class="col-12 col-sm-6">
+                        <h6>Рецепт рецепт Lorem ipsum dolor sit amet consectetur adipisicing elit. Excepturi eius nemo voluptatum minus
+                            facilis blanditiis ut architecto rem maiores, aperiam aut debitis repellat quod voluptates natus, laboriosam hic
+                            adipisci non. Lorem ipsum dolor sit amet consectetur adipisicing elit. Excepturi eius nemo voluptatum minus
+                            facilis blanditiis ut architecto rem maiores, aperiam aut debitis repellat quod voluptates natus, laboriosam hic
+                            adipisci non. Lorem ipsum dolor sit amet consectetur adipisicing elit. Excepturi eius nemo voluptatum minus
+                            facilis blanditiis ut architecto rem maiores, aperiam aut debitis repellat quod voluptates natus, laboriosam hic
+                            adipisci non.</h6>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <small class="link-secondary">Ингредиенты:</small>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item disabled"><small>ингредиент (500г.)</small></li>
+                            <li class="list-group-item disabled"><small>ингредиент (500г.)</small></li>
+                            <li class="list-group-item disabled"><small>ингредиент (500г.)</small></li>
+                            <li class="list-group-item disabled"><small>ингредиент (500г.)</small></li>
+                            <li class="list-group-item disabled"><small>ингредиент (500г.)</small></li>
+                        </ul>
+                        <small class="link-secondary">Общая калорийность: 1000 ккал</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
