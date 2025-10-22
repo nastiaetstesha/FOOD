@@ -20,11 +20,15 @@
             
             <div class="card col-12 col-md-2 p-3 mb-3 d-flex flex-column align-items-center foodplan__shadow">
                 <div class="position-relative">
-                    <img src="{% static 'img/test_avatar.png' %}" alt="Аватар" width="100" height="100" class="rounded-pill">
+                    {% if user_page.image %}
+                        <img src="{{ user_page.image.url }}" alt="Аватар" width="100" height="100" class="rounded-pill">
+                    {% else %}
+                        <img src="{% static 'img/test_avatar.png' %}" alt="Аватар" width="100" height="100" class="rounded-pill">
+                    {% endif %}
                     <span class="badge rounded-circle position-absolute bottom-0 end-0 foodplan__bg_green avatar__plus"><a href="#"
                             class="link-dark text-decoration-none align-middle">+</a></span>
                 </div>
-                <h3 class="card-title text-center">Tim</h3>
+                <h3 class="card-title text-center">{{ user_page.username }}</h3>
                 <div class="d-block">
                     <a href="{% url 'index' %}" class="btn btn-outline-success shadow-none foodplan_green foodplan__border_green">Выйти</a>
                 </div>
@@ -42,72 +46,106 @@
                     </ul>
                     <div class="tab-content mt-2">
                         <div class="tab-pane fade show active" id="data">
-                            <form action="">
+                            <form action="" method="POST">
+                                {% csrf_token %}
                                 <div class="mb-3">
                                     <div class="d-flex align-items-center justify-content-between">
-                                        <label for="exampleInputEmail1" class="form-label">Имя</label>
+                                        <label for="name" class="form-label">Имя</label>
                                         <small><a href="#" class="link-dark foodplan_green">изменить</a></small>
                                     </div>
-                                
-                                    <input type="text" class="form-control" id="name">
+                                    <input type="text" class="form-control" id="name" name="username" value="{{ user_page.username }}">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="exampleInputEmail1" class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="email" aria-describedby="emailHelp">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" aria-describedby="emailHelp">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="allergies" class="form-label">Мои аллергии</label>
+                                    <div class="form-text">
+                                        {% if user_page.allergies.all %}
+                                            <div class="d-flex flex-wrap gap-2">
+                                                {% for allergy in user_page.allergies.all %}
+                                                    <span class="badge foodplan__bg_green">{{ allergy.name }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">Аллергии не указаны</span>
+                                        {% endif %}
+                                    </div>
+                                    <small><a href="{% url 'order' %}" class="link-dark foodplan_green">изменить аллергии</a></small>
                                 </div>
                                 <div class="mb-3">
                                     <div class="d-flex align-items-center justify-content-between">
-                                        <label for="exampleInputPassword1" class="form-label">Пароль</label>
+                                        <label for="password" class="form-label">Пароль</label>
                                         <small><a href="#" class="link-dark foodplan_green">изменить</a></small>
                                     </div>
-                                
-                                    <input type="password" class="form-control" id="password">
+                                    <input type="password" class="form-control" id="password" name="password" placeholder="••••••••">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="exampleInputPassword1" class="form-label">Подтверждение пароля</label>
-                                    <input type="password" class="form-control" id="PasswordConfirm">
+                                    <label for="PasswordConfirm" class="form-label">Подтверждение пароля</label>
+                                    <input type="password" class="form-control" id="PasswordConfirm" name="password_confirm" placeholder="••••••••">
                                 </div>
                                 <div class="d-block">
-                                    <button type="submit" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Сохранить
-                                        изменения</button>
+                                    <button type="submit" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Сохранить изменения</button>
                                 </div>
                             </form>
                         </div>
                         <div class="tab-pane fade" id="menu">
+                            {% if active_subscription %}
                             <div class="row">
                                 <div class="col-2">
-                                    <img src="{% static 'img/circle1.png' %}" alt="Подписка" class="w-100">
+                                    {% if user_page.menu_type and user_page.menu_type.image %}
+                                        <img src="{{ user_page.menu_type.image.url }}" alt="Подписка" class="w-100">
+                                    {% else %}
+                                        <img src="{% static 'img/circle1.png' %}" alt="Подписка" class="w-100">
+                                    {% endif %}
                                 </div>
                                 <div class="col-10 col-md-10">
                                     <div class="row">
                                         <div class="col-12">
-                                            <h2>Название подписки</h2>
+                                            <h2>{{ active_subscription.menu_type.title|default:"Название подписки" }}</h2>
                                         </div>
                                         <div class="col-md-12 col-lg-9">
-                                            <h6>Описание подписки Lorem ipsum dolor sit, amet consectetur adipisicing elit. Eius saepe ea nobis necessitatibus
-                                                consectetur rem! Eligendi assumenda facere sint quibusdam dolorem quasi doloribus nemo, temporibus molestiae
-                                                distinctio cum laboriosam sed. Lorem ipsum dolor sit, amet consectetur adipisicing elit. Eius saepe ea nobis
-                                                necessitatibus consectetur rem! Eligendi
-                                                assumenda facere sint quibusdam dolorem quasi doloribus nemo, temporibus molestiae distinctio cum laboriosam
-                                                sed.</h6>
+                                            <h6>Ваше персонализированное меню с учетом выбранных аллергий. Доступно безопасных рецептов: {{ safe_recipes_count }}</h6>
                                         </div>
                                         <div class="col-md-12 col-lg-3 text-muted d-flex flex-column justify-content-between">
                                             <div class="d-flex flex-row justify-content-between">
-                                                <small>Персоны: </small><small>3</small>
+                                                <small>Персоны: </small>
+                                                <small>{{ active_subscription.persons }}</small>
                                             </div>
                                             <div class="d-flex flex-row justify-content-between">
-                                                <small>Аллергии: </small><small>нет</small>
+                                                <small>Аллергии: </small>
+                                                <small>
+                                                    {% if user_page.allergies.all %}
+                                                        {{ user_page.allergies.all|join:", " }}
+                                                    {% else %}
+                                                        нет
+                                                    {% endif %}
+                                                </small>
                                             </div>
                                             <div class="d-flex flex-row justify-content-between">
-                                                <small>Калории: </small><small>1400</small>
+                                                <small>Срок: </small>
+                                                <small>{{ active_subscription.months }} мес.</small>
                                             </div>
                                             <div class="d-flex flex-row justify-content-between">
-                                                <small>Кол-во приёмов пищи: </small><small>4</small>
+                                                <small>Приёмы пищи: </small>
+                                                <small>
+                                                    {% if active_subscription.breakfast %}Завтрак {% endif %}
+                                                    {% if active_subscription.lunch %}Обед {% endif %}
+                                                    {% if active_subscription.dinner %}Ужин {% endif %}
+                                                    {% if active_subscription.dessert %}Десерт {% endif %}
+                                                </small>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <h4 class="text-muted">У вас нет активной подписки</h4>
+                                <a href="{% url 'order' %}" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green mt-3">Оформить подписку</a>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
             </div>

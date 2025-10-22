@@ -9,6 +9,7 @@ class User(AbstractUser):
 
     class Meta:
         verbose_name = "Пользователь"
+        verbose_name_plural = "Пользователи"
 
 
 class FoodTag(models.Model):
@@ -16,6 +17,10 @@ class FoodTag(models.Model):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        verbose_name = "Аллерген"
+        verbose_name_plural = "Аллергены"
 
 
 class PriceRange(models.Model):
@@ -56,6 +61,10 @@ class PriceRange(models.Model):
             self.name = self.get_name()
         super().save(*args, **kwargs)
 
+    class Meta:
+        verbose_name = "Диапазон цен"
+        verbose_name_plural = "Диапазоны цен"
+
 
 class Ingredient(models.Model):
     name = models.CharField(max_length=100)
@@ -74,9 +83,20 @@ class Ingredient(models.Model):
         default=0.00,
         validators=[MinValueValidator(0)],
     )
+    
+    allergens = models.ManyToManyField(
+        FoodTag, 
+        related_name="ingredients", 
+        verbose_name="Аллергены",
+        blank=True
+    )
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        verbose_name = "Ингредиент"
+        verbose_name_plural = "Ингредиенты"
 
 
 class MenuType(models.Model):
@@ -90,6 +110,10 @@ class MenuType(models.Model):
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        verbose_name = "Тип меню"
+        verbose_name_plural = "Типы меню"
 
 
 class Recipe(models.Model):
@@ -173,8 +197,30 @@ class Recipe(models.Model):
                 calories += ingredient.mass * ingredient.ingredient.caloricity / 100
         return calories
 
+    def get_allergens(self):
+        allergens = set()
+        for ingredient in self.ingredients.all():
+            allergens.update(ingredient.ingredient.allergens.all())
+        return list(allergens)
+
+    def has_user_allergies(self, user_allergies):
+        recipe_allergens = self.get_allergens()
+        user_allergy_ids = [allergy.id for allergy in user_allergies]
+        recipe_allergen_ids = [allergen.id for allergen in recipe_allergens]
+        
+        return bool(set(user_allergy_ids) & set(recipe_allergen_ids))
+
+    def is_safe_for_user(self, user_page):
+        if not user_page.allergies.exists():
+            return True
+        return not self.has_user_allergies(user_page.allergies.all())
+
     def __str__(self):
         return f'{self.title}{" - Премиум" if self.premium else ""}'
+
+    class Meta:
+        verbose_name = "Рецепт"
+        verbose_name_plural = "Рецепты"
 
 
 class RecipeIngredient(models.Model):
@@ -192,6 +238,10 @@ class RecipeIngredient(models.Model):
 
     def __str__(self):
         return f"{self.recipe.title}: {self.ingredient.name}, {self.mass} г"
+
+    class Meta:
+        verbose_name = "Ингредиент рецепта"
+        verbose_name_plural = "Ингредиенты рецептов"
 
 
 class UserPage(models.Model):
@@ -232,11 +282,24 @@ class UserPage(models.Model):
         blank=True,
     )
 
+    def get_safe_recipes(self):
+        from django.db.models import Q
+        if not self.allergies.exists():
+            return Recipe.objects.all()
+        
+        safe_recipes = Recipe.objects.all()
+        for allergy in self.allergies.all():
+            safe_recipes = safe_recipes.exclude(
+                ingredients__ingredient__allergens=allergy
+            )
+        return safe_recipes.distinct()
+
     def __str__(self):
         return self.username
 
     class Meta:
-        verbose_name = "Страницы клиентов"
+        verbose_name = "Страница клиента"
+        verbose_name_plural = "Страницы клиентов"
         ordering = ["username"]
 
 
@@ -298,7 +361,8 @@ class Subscription(models.Model):
     
     
     class Meta:
-        verbose_name = "Подписки"
+        verbose_name = "Подписка"
+        verbose_name_plural = "Подписки"
         ordering = ["user", "menu_type"]
     
 
@@ -350,5 +414,27 @@ class DailyMenu(models.Model):
         UserPage, verbose_name="Пользователи", related_name="daily_menu", blank=True
     )
 
+    def get_safe_menu_for_user(self, user_page):
+        safe_menu = {
+            'breakfast': self.breakfast,
+            'lunch': self.lunch,
+            'dinner': self.dinner,
+            'dessert': self.dessert,
+        }
+        
+        for meal_type, recipe in safe_menu.items():
+            if recipe and not recipe.is_safe_for_user(user_page):
+                replacement = user_page.get_safe_recipes().filter(
+                    meal_type=recipe.meal_type,
+                    menu_type=self.menu_type
+                ).first()
+                safe_menu[meal_type] = replacement
+        
+        return safe_menu
+
     def __str__(self):
         return f"Меню на {self.date}"
+
+    class Meta:
+        verbose_name = "Дневное меню"
+        verbose_name_plural = "Дневные меню"

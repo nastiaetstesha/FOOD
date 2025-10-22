@@ -105,15 +105,29 @@ class UserPageAdmin(admin.ModelAdmin):
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
     search_fields = ("name",)
-    list_display = ("name", "price")
-
+    list_display = ("name", "price", "allergens_list")
+    list_filter = ("allergens",)
+    
+    def allergens_list(self, obj):
+        if obj.allergens.exists():
+            return ", ".join(allergen.name for allergen in obj.allergens.all())
+        return "-"
+    
+    allergens_list.short_description = "Аллергены"
 
 class RecipeIngredientInline(admin.TabularInline):
     model = RecipeIngredient
     extra = 0
-    fields = ("ingredient", "mass")
+    fields = ("ingredient", "mass", "get_allergens")
     autocomplete_fields = ["ingredient"]
-
+    
+    def get_allergens(self, obj):
+        if obj.ingredient and obj.ingredient.allergens.exists():
+            return ", ".join(allergen.name for allergen in obj.ingredient.allergens.all())
+        return "-"
+    
+    get_allergens.short_description = "Аллергены"
+    readonly_fields = ['get_allergens']
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
@@ -125,13 +139,22 @@ class RecipeAdmin(admin.ModelAdmin):
         "price",
         "premium",
         "foodtags",
+        "allergens_list",  # Добавляем отображение аллергенов
         "on_index",
     ]
-    list_filter = ("meal_type", "tags", "premium")
+    list_filter = ("meal_type", "tags", "premium", "ingredients__ingredient__allergens")
     inlines = [RecipeIngredientInline]
     readonly_fields = ["image_preview"]
     search_fields = ("title",)
     list_editable = ("on_index", "premium")
+    
+    def allergens_list(self, obj):
+        allergens = obj.get_allergens()
+        if allergens:
+            return ", ".join(allergen.name for allergen in allergens)
+        return "-"
+    
+    allergens_list.short_description = "Аллергены в рецепте"
 
     def foodtags(self, obj):
         if obj.tags:
@@ -149,7 +172,6 @@ class RecipeAdmin(admin.ModelAdmin):
         return format_html('<span style="color: gray;">Нет изображения</span>')
 
     image_preview.short_description = "Превью изображения"
-
 
 @admin.register(MenuType)
 class MenuTypeAdmin(admin.ModelAdmin):
