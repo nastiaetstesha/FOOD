@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Q
 
 
 class User(AbstractUser):
@@ -127,9 +128,6 @@ class Recipe(models.Model):
     title = models.CharField(max_length=255, unique=True, verbose_name="Название блюда")
     image = models.ImageField(verbose_name="Изображение", upload_to="recipes/")
     description = models.TextField(blank=True, verbose_name="Описание")
-    tags = models.ManyToManyField(
-        FoodTag, related_name="recipes", verbose_name="Теги блюда"
-    )
     sequence = models.TextField(blank=True, verbose_name="Пошаговая инструкция")
     meal_type = models.CharField(
         max_length=20,
@@ -167,13 +165,11 @@ class Recipe(models.Model):
         validators=[MinValueValidator(0)],
     )
 
-    menu_type = models.ForeignKey(
+    menu_types = models.ManyToManyField(
         MenuType,
-        verbose_name="Тип меню",
-        on_delete=models.CASCADE,
+        verbose_name="Типы меню",
         related_name="recipes",
-        blank=True,
-        null=True
+        blank=True
     )
 
     def get_price(self):
@@ -273,21 +269,27 @@ class UserPage(models.Model):
         blank=True,
     )
 
-    menu_type = models.ForeignKey(
+    menu_types = models.ManyToManyField(
         MenuType,
         related_name="users",
-        verbose_name="Тип меню",
-        on_delete=models.CASCADE,
-        null=True,
+        verbose_name="Типы меню",
         blank=True,
     )
 
+    def get_active_subscription(self):
+        return self.subscription.first()
+    
+    def has_active_subscription(self):
+        return self.subscription.exists()
+
     def get_safe_recipes(self):
-        from django.db.models import Q
+        if self.menu_types.exists():
+            base_recipes = Recipe.objects.filter(menu_types__in=self.menu_types.all()).distinct()
+        else:
+            base_recipes = Recipe.objects.all()
         if not self.allergies.exists():
-            return Recipe.objects.all()
-        
-        safe_recipes = Recipe.objects.all()
+            return base_recipes
+        safe_recipes = base_recipes
         for allergy in self.allergies.all():
             safe_recipes = safe_recipes.exclude(
                 ingredients__ingredient__allergens=allergy
@@ -301,6 +303,27 @@ class UserPage(models.Model):
         verbose_name = "Страница клиента"
         verbose_name_plural = "Страницы клиентов"
         ordering = ["username"]
+
+def get_safe_recipes(self):
+    
+    conditions = Q()
+    
+    if self.menu_types.exists():
+        conditions &= Q(menu_types__in=self.menu_types.all())
+    
+    if self.allergies.exists():
+        for allergy in self.allergies.all():
+            conditions &= ~Q(ingredients__ingredient__allergens=allergy)
+    
+    return Recipe.objects.filter(conditions).distinct()
+
+def __str__(self):
+    return self.username
+
+class Meta:
+    verbose_name = "Страница клиента"
+    verbose_name_plural = "Страницы клиентов"
+    ordering = ["username"]
 
 
 class Subscription(models.Model): 
@@ -319,12 +342,10 @@ class Subscription(models.Model):
         verbose_name="Пользователь",
     )
     
-    menu_type = models.ForeignKey(
+    menu_types = models.ManyToManyField(
         MenuType,
         related_name="subscriptions",
-        verbose_name="Тип меню",
-        on_delete=models.CASCADE,
-        null=True,
+        verbose_name="Типы меню",
         blank=True,
     )
 
@@ -363,7 +384,7 @@ class Subscription(models.Model):
     class Meta:
         verbose_name = "Подписка"
         verbose_name_plural = "Подписки"
-        ordering = ["user", "menu_type"]
+        ordering = ["user"]
     
 
 class DailyMenu(models.Model):
@@ -377,12 +398,10 @@ class DailyMenu(models.Model):
         ("sun", "воскресенье"),
     ]
 
-    menu_type = models.ForeignKey(
+    menu_types = models.ManyToManyField(
         MenuType,
         related_name="dailymenus",
-        verbose_name="Тип меню",
-        on_delete=models.CASCADE,
-        null=True,
+        verbose_name="Типы меню",
         blank=True,
     )
 
@@ -426,7 +445,7 @@ class DailyMenu(models.Model):
             if recipe and not recipe.is_safe_for_user(user_page):
                 replacement = user_page.get_safe_recipes().filter(
                     meal_type=recipe.meal_type,
-                    menu_type=self.menu_type
+                    menu_types__in=user_page.menu_types.all()
                 ).first()
                 safe_menu[meal_type] = replacement
         

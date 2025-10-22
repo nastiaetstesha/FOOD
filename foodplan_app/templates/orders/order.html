@@ -129,20 +129,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const updatePrice = () => {
         const months = parseInt(document.getElementById('months').value);
         const persons = parseInt(document.getElementById('persons').value);
-        const mealSelects = document.querySelectorAll('.meal-select');
         
-        let mealsCount = 0;
-        mealSelects.forEach(select => {
-            if (select.value === '1') mealsCount++;
-        });
+        const breakfast = document.querySelector('select[name="breakfast"]').value === '1';
+        const lunch = document.querySelector('select[name="lunch"]').value === '1';
+        const dinner = document.querySelector('select[name="dinner"]').value === '1';
+        const dessert = document.querySelector('select[name="dessert"]').value === '1';
         
-        let basePrice = 1000 * months * persons;
-        if (mealsCount > 1) {
-            basePrice *= 1.2; // +20% за дополнительные приемы пищи
-        }
+        const prices = {
+            1: { breakfast: 100, lunch: 300, dinner: 200, dessert: 100 },
+            3: { breakfast: 200, lunch: 600, dinner: 400, dessert: 200 },
+            6: { breakfast: 300, lunch: 900, dinner: 600, dessert: 300 },
+            12: { breakfast: 400, lunch: 1200, dinner: 800, dessert: 400 }
+        };
+        
+        const monthPrices = prices[months] || prices[1];
+        
+        let totalPrice = 0;
+        if (breakfast) totalPrice += monthPrices.breakfast;
+        if (lunch) totalPrice += monthPrices.lunch;
+        if (dinner) totalPrice += monthPrices.dinner;
+        if (dessert) totalPrice += monthPrices.dessert;
+        
+        totalPrice *= persons;
         
         const priceElement = document.querySelector('.text-secondary.mt-2.me-2');
-        priceElement.textContent = `Стоимость: ${Math.round(basePrice)}₽`;
+        priceElement.textContent = `Стоимость: ${totalPrice}₽`;
     };
     
     document.getElementById('months').addEventListener('change', updatePrice);
@@ -150,8 +161,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.meal-select').forEach(select => {
         select.addEventListener('change', updatePrice);
     });
-    
     updatePrice();
 });
-</script>
-{% endblock %}
+</script>{% endblock %}

@@ -11,12 +11,13 @@ def auth_view(request):
 def registration_view(request):
     return render(request, 'registration/registration.html')
 
+@login_required
 def order_view(request):
     menu_types = MenuType.objects.all()
     allergies = FoodTag.objects.all()
     
     if request.method == 'POST':
-        menu_type_id = request.POST.get('foodtype')
+        menu_type_ids = request.POST.getlist('foodtype')  # ИЗМЕНИТЬ: getlist для множественного выбора
         months = int(request.POST.get('months', 1))
         persons = int(request.POST.get('persons', 1))
         breakfast = request.POST.get('breakfast') == '1'
@@ -24,7 +25,6 @@ def order_view(request):
         dinner = request.POST.get('dinner') == '1'
         dessert = request.POST.get('dessert') == '1'
         selected_allergies = request.POST.getlist('allergies')
-        
         user_page, created = UserPage.objects.get_or_create(
             user=request.user,
             defaults={'username': request.user.username}
@@ -32,10 +32,10 @@ def order_view(request):
         
         user_page.allergies.set(FoodTag.objects.filter(id__in=selected_allergies))
         
-        menu_type = MenuType.objects.get(id=menu_type_id)
+        Subscription.objects.filter(user=user_page).delete()
+        
         subscription = Subscription.objects.create(
             user=user_page,
-            menu_type=menu_type,
             months=months,
             persons=persons,
             breakfast=breakfast,
@@ -44,6 +44,13 @@ def order_view(request):
             dessert=dessert,
             price=calculate_price(months, persons, breakfast, lunch, dinner, dessert)
         )
+        
+        selected_menu_types = MenuType.objects.filter(id__in=menu_type_ids)
+        subscription.menu_types.set(selected_menu_types)
+        
+        user_page.menu_types.set(selected_menu_types)
+        user_page.is_subscribed = True
+        user_page.save()
         
         return redirect('lk')
     
@@ -70,14 +77,28 @@ def lk_view(request):
     })
 
 def calculate_price(months, persons, breakfast, lunch, dinner, dessert):
-    base_price = 1000
-    price = base_price * months * persons
+    prices = {
+        1: {'breakfast': 100, 'lunch': 300, 'dinner': 200, 'dessert': 100},
+        3: {'breakfast': 200, 'lunch': 600, 'dinner': 400, 'dessert': 200},
+        6: {'breakfast': 300, 'lunch': 900, 'dinner': 600, 'dessert': 300},
+        12: {'breakfast': 400, 'lunch': 1200, 'dinner': 800, 'dessert': 400}
+    }
     
-    meals_count = sum([breakfast, lunch, dinner, dessert])
-    if meals_count > 1:
-        price *= 1.2
+    month_prices = prices.get(months, prices[1])
     
-    return price
+    total_price = 0
+    if breakfast:
+        total_price += month_prices['breakfast']
+    if lunch:
+        total_price += month_prices['lunch']
+    if dinner:
+        total_price += month_prices['dinner']
+    if dessert:
+        total_price += month_prices['dessert']
+    
+    total_price *= persons
+    
+    return total_price
 
 def recipe_detail(request, recipe_id):
     if recipe_id == 1:
