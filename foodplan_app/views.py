@@ -1,15 +1,69 @@
 from django.shortcuts import render, redirect
-from .models import MenuType, FoodTag, UserPage, Subscription
+from django.contrib.auth import login, authenticate
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from .models import MenuType, FoodTag, UserPage, Subscription, User
+from .forms import EmailAuthenticationForm, CustomUserCreationForm
+
 
 def index(request):
     return render(request, 'index.html')
 
+
 def auth_view(request):
-    return render(request, 'registration/auth.html')
+    if request.user.is_authenticated:
+        return redirect('lk')
+        
+    if request.method == 'POST':
+        form = EmailAuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            messages.success(request, f'Добро пожаловать, {user.username}!')
+            
+            next_url = request.POST.get('next') or request.GET.get('next') or 'lk'
+            return redirect(next_url)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{error}')
+    else:
+        form = EmailAuthenticationForm()
+    
+    next_url = request.GET.get('next', '')
+    
+    return render(request, 'registration/auth.html', {
+        'form': form,
+        'next': next_url
+    })
+
 
 def registration_view(request):
-    return render(request, 'registration/registration.html')
+    if request.user.is_authenticated:
+        return redirect('lk')
+        
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            
+            UserPage.objects.create(
+                user=user,
+                username=user.username
+            )
+            
+            login(request, user)
+            messages.success(request, f'Аккаунт создан для {user.username}!')
+            return redirect('lk')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{error}')
+    else:
+        form = CustomUserCreationForm()
+    
+    return render(request, 'registration/registration.html', {'form': form})
+
 
 @login_required
 def order_view(request):
@@ -17,7 +71,7 @@ def order_view(request):
     allergies = FoodTag.objects.all()
     
     if request.method == 'POST':
-        menu_type_ids = request.POST.getlist('foodtype')  # ИЗМЕНИТЬ: getlist для множественного выбора
+        menu_type_ids = request.POST.getlist('foodtype')
         months = int(request.POST.get('months', 1))
         persons = int(request.POST.get('persons', 1))
         breakfast = request.POST.get('breakfast') == '1'
@@ -25,6 +79,7 @@ def order_view(request):
         dinner = request.POST.get('dinner') == '1'
         dessert = request.POST.get('dessert') == '1'
         selected_allergies = request.POST.getlist('allergies')
+        
         user_page, created = UserPage.objects.get_or_create(
             user=request.user,
             defaults={'username': request.user.username}
@@ -52,6 +107,7 @@ def order_view(request):
         user_page.is_subscribed = True
         user_page.save()
         
+        messages.success(request, 'Подписка успешно оформлена!')
         return redirect('lk')
     
     return render(request, 'orders/order.html', {
@@ -59,15 +115,18 @@ def order_view(request):
         'allergies': allergies
     })
 
+
 @login_required
 def lk_view(request):
-    user_page, created = UserPage.objects.get_or_create(
-        user=request.user,
-        defaults={'username': request.user.username}
-    )
+    try:
+        user_page = UserPage.objects.get(user=request.user)
+    except UserPage.DoesNotExist:
+        user_page = UserPage.objects.create(
+            user=request.user,
+            username=request.user.username
+        )
     
     active_subscription = user_page.subscription.first()
-    
     safe_recipes = user_page.get_safe_recipes()
     
     return render(request, 'accounts/lk.html', {
@@ -75,6 +134,7 @@ def lk_view(request):
         'active_subscription': active_subscription,
         'safe_recipes_count': safe_recipes.count(),
     })
+
 
 def calculate_price(months, persons, breakfast, lunch, dinner, dessert):
     prices = {
@@ -99,6 +159,7 @@ def calculate_price(months, persons, breakfast, lunch, dinner, dessert):
     total_price *= persons
     
     return total_price
+
 
 def recipe_detail(request, recipe_id):
     if recipe_id == 1:

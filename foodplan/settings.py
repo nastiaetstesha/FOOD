@@ -32,6 +32,10 @@ INSTALLED_APPS = [
     'foodplan_app',
 ]
 
+LOGIN_URL = 'auth'
+LOGIN_REDIRECT_URL = 'lk'
+LOGOUT_REDIRECT_URL = 'index'
+
 AUTH_USER_MODEL = "foodplan_app.User"
 
 MIDDLEWARE = [
@@ -118,3 +122,5 @@ MEDIA_URL = "/media/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
