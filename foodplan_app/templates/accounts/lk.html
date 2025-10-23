@@ -4,6 +4,7 @@
 {% block title %}FoodPlan - Личный кабинет{% endblock %}
 
 {% block nav_buttons %}
+    <a href="{% url 'index' %}" class="btn btn-outline-primary shadow-none foodplan_green foodplan__border_green me-2">Главная страница</a>
     <a href="{% url 'logout' %}" class="btn btn-outline-success shadow-none foodplan_green foodplan__border_green">Выйти</a>
 {% endblock %}
 
@@ -30,6 +31,7 @@
                 </div>
                 <h3 class="card-title text-center">{{ user_page.username }}</h3>
                 <div class="d-block">
+                    <a href="{% url 'index' %}" class="btn btn-outline-primary shadow-none foodplan_green foodplan__border_green me-2">Главная страница</a>
                     <a href="{% url 'logout' %}" class="btn btn-outline-success shadow-none foodplan_green foodplan__border_green">Выйти</a>
                 </div>
             </div>
