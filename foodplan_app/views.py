@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from .models import MenuType, FoodTag, UserPage, Subscription
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
+
 
 def index(request):
     return render(request, 'index.html')
@@ -11,13 +13,65 @@ def auth_view(request):
 def registration_view(request):
     return render(request, 'registration/registration.html')
 
+# @login_required
+# def order_view(request):
+#     menu_types = MenuType.objects.all()
+#     allergies = FoodTag.objects.all()
+    
+#     if request.method == 'POST':
+#         menu_type_ids = request.POST.getlist('foodtype')  # ИЗМЕНИТЬ: getlist для множественного выбора
+#         months = int(request.POST.get('months', 1))
+#         persons = int(request.POST.get('persons', 1))
+#         breakfast = request.POST.get('breakfast') == '1'
+#         lunch = request.POST.get('lunch') == '1'
+#         dinner = request.POST.get('dinner') == '1'
+#         dessert = request.POST.get('dessert') == '1'
+#         selected_allergies = request.POST.getlist('allergies')
+#         user_page, created = UserPage.objects.get_or_create(
+#             user=request.user,
+#             defaults={'username': request.user.username}
+#         )
+        
+#         user_page.allergies.set(FoodTag.objects.filter(id__in=selected_allergies))
+        
+#         Subscription.objects.filter(user=user_page).delete()
+        
+#         subscription = Subscription.objects.create(
+#             user=user_page,
+#             months=months,
+#             persons=persons,
+#             breakfast=breakfast,
+#             lunch=lunch,
+#             dinner=dinner,
+#             dessert=dessert,
+#             price=calculate_price(months, persons, breakfast, lunch, dinner, dessert)
+#         )
+        
+#         selected_menu_types = MenuType.objects.filter(id__in=menu_type_ids)
+#         subscription.menu_types.set(selected_menu_types)
+        
+#         user_page.menu_types.set(selected_menu_types)
+#         user_page.is_subscribed = True
+#         user_page.save()
+        
+#         return redirect('lk')
+    
+#     return render(request, 'orders/order.html', {
+#         'menu_types': menu_types,
+#         'allergies': allergies
+#     })
+
+
 @login_required
 def order_view(request):
     menu_types = MenuType.objects.all()
     allergies = FoodTag.objects.all()
-    
+
     if request.method == 'POST':
-        menu_type_ids = request.POST.getlist('foodtype')  # ИЗМЕНИТЬ: getlist для множественного выбора
+        # тип(ы) меню из формы; берём первый отмеченный
+        menu_type_ids = request.POST.getlist('foodtype')
+        selected_menu_type = MenuType.objects.filter(id__in=menu_type_ids).first()
+
         months = int(request.POST.get('months', 1))
         persons = int(request.POST.get('persons', 1))
         breakfast = request.POST.get('breakfast') == '1'
@@ -25,39 +79,62 @@ def order_view(request):
         dinner = request.POST.get('dinner') == '1'
         dessert = request.POST.get('dessert') == '1'
         selected_allergies = request.POST.getlist('allergies')
-        user_page, created = UserPage.objects.get_or_create(
+        promocode = (request.POST.get('promocode') or '').strip()
+
+        if not selected_menu_type:
+            # ничего не выбрали — вернём форму с сообщением
+            return render(
+                request,
+                'orders/order.html',
+                {
+                    'menu_types': menu_types,
+                    'allergies': allergies,
+                    'error': 'Выберите тип меню',
+                },
+            )
+
+        # профиль пользователя
+        user_page, _ = UserPage.objects.get_or_create(
             user=request.user,
-            defaults={'username': request.user.username}
+            defaults={'username': request.user.username},
         )
-        
+
+        # аллергии
         user_page.allergies.set(FoodTag.objects.filter(id__in=selected_allergies))
-        
+
+        # заменяем прошлую подписку новой
         Subscription.objects.filter(user=user_page).delete()
-        
+
         subscription = Subscription.objects.create(
             user=user_page,
+            menu_type=selected_menu_type,
             months=months,
             persons=persons,
             breakfast=breakfast,
             lunch=lunch,
             dinner=dinner,
             dessert=dessert,
-            price=calculate_price(months, persons, breakfast, lunch, dinner, dessert)
+            price=calculate_price(months, persons, breakfast, lunch, dinner, dessert),
+            promocode=promocode or None,
         )
-        
-        selected_menu_types = MenuType.objects.filter(id__in=menu_type_ids)
-        subscription.menu_types.set(selected_menu_types)
-        
-        user_page.menu_types.set(selected_menu_types)
+
+        # отметить выбранное меню у профиля
+        user_page.menu_type = selected_menu_type
         user_page.is_subscribed = True
         user_page.save()
-        
+
         return redirect('lk')
-    
-    return render(request, 'orders/order.html', {
-        'menu_types': menu_types,
-        'allergies': allergies
-    })
+
+    return render(
+        request,
+        'orders/order.html',
+        {
+            'menu_types': menu_types,
+            'allergies': allergies,
+        },
+    )
+
+
 
 @login_required
 def lk_view(request):
@@ -111,3 +188,8 @@ def recipe_detail(request, recipe_id):
         template = 'recipes/card1.html'
     
     return render(request, template, {'recipe_id': recipe_id})
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('index')
