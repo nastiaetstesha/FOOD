@@ -4,10 +4,7 @@
 {% block title %}FoodPlan - Личный кабинет{% endblock %}
 
 {% block nav_buttons %}
-<form method="post" action="{% url 'logout' %}">
-  {% csrf_token %}
-  <button type="submit" class="btn shadow-none foodplan_green foodplan__border_green">Выйти</button>
-</form>
+<a href="{% url 'index' %}" class="btn btn-outline-success shadow-none foodplan_green foodplan__border_green">Выйти</a>
 {% endblock %}
 
 {% block content %}
@@ -33,10 +30,7 @@
                 </div>
                 <h3 class="card-title text-center">{{ user_page.username }}</h3>
                 <div class="d-block">
-                    <form method="post" action="{% url 'logout' %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn shadow-none foodplan_green foodplan__border_green">Выйти</button>
-                    </form>
+                    <a href="{% url 'index' %}" class="btn btn-outline-success shadow-none foodplan_green foodplan__border_green">Выйти</a>
                 </div>
             </div>
 
@@ -106,8 +100,8 @@
                             </div>
                             <div class="row">
                                 <div class="col-2">
-                                    {% if user_page.menu_type and user_page.menu_type.image %}
-                                        <img src="{{ user_page.menu_type.image.url }}" alt="Подписка" class="w-100">
+                                    {% if user_page.menu_types.first and user_page.menu_types.first.image %}
+                                        <img src="{{ user_page.menu_types.first.image.url }}" alt="Подписка" class="w-100">
                                     {% else %}
                                         <img src="{% static 'img/circle1.png' %}" alt="Подписка" class="w-100">
                                     {% endif %}
@@ -116,10 +110,10 @@
                                     <div class="row">
                                         <div class="col-12">
                                             <h2>
-                                                {% if active_subscription.menu_type %}
-                                                    {{ active_subscription.menu_type.title }}
+                                                {% if active_subscription.menu_types.all %}
+                                                    {{ active_subscription.menu_types.all|join:", " }}
                                                 {% else %}
-                                                    Тип меню не выбран
+                                                    Типы меню не выбраны
                                                 {% endif %}
                                             </h2>
                                         </div>
@@ -157,10 +151,10 @@
                                             <div class="d-flex flex-row justify-content-between">
                                                 <small>Типы меню: </small>
                                                 <small>
-                                                    {% if active_subscription.menu_type %}
-                                                        {{ active_subscription.menu_type.title }}
+                                                    {% if active_subscription.menu_types.all %}
+                                                        {{ active_subscription.menu_types.all|join:", " }}
                                                     {% else %}
-                                                        не выбран
+                                                        не выбраны
                                                     {% endif %}
                                                 </small>
                                             </div>

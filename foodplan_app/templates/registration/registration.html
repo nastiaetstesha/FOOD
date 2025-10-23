@@ -5,7 +5,7 @@
 
 {% block nav_buttons %}
 <a href="{% url 'order' %}" class="btn shadow-none btn-outline-success me-2 foodplan_green foodplan__border_green">Подписка</a>
-<a href="{% url 'login' %}" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Войти</a>
+<a href="{% url 'auth' %}" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Войти</a>
 {% endblock %}
 
 {% block content %}
@@ -46,7 +46,7 @@
                         <button type="submit" class="btn shadow-none w-100 btn-outline-success foodplan_green foodplan__border_green">Регистрация</button>
                     </div>
                     <div class="col-12 col-sm-6 mt-3 d-flex justify-content-center align-items-center">
-                        <small>Уже есть аккаунт? <a href="{% url 'login' %}" class="link-dark foodplan_green">Войти</a></small>
+                        <small>Уже есть аккаунт? <a href="{% url 'auth' %}" class="link-dark foodplan_green">Войти</a></small>
                     </div>
                 </div>
             </form>

@@ -304,21 +304,21 @@ class UserPage(models.Model):
         verbose_name_plural = "Страницы клиентов"
         ordering = ["username"]
 
-# def get_safe_recipes(self):
+def get_safe_recipes(self):
     
-#     conditions = Q()
+    conditions = Q()
     
-#     if self.menu_types.exists():
-#         conditions &= Q(menu_types__in=self.menu_types.all())
+    if self.menu_types.exists():
+        conditions &= Q(menu_types__in=self.menu_types.all())
     
-#     if self.allergies.exists():
-#         for allergy in self.allergies.all():
-#             conditions &= ~Q(ingredients__ingredient__allergens=allergy)
+    if self.allergies.exists():
+        for allergy in self.allergies.all():
+            conditions &= ~Q(ingredients__ingredient__allergens=allergy)
     
-#     return Recipe.objects.filter(conditions).distinct()
+    return Recipe.objects.filter(conditions).distinct()
 
-# def __str__(self):
-#     return self.username
+def __str__(self):
+    return self.username
 
 class Meta:
     verbose_name = "Страница клиента"

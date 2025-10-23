@@ -21,7 +21,7 @@
                     {% if user.is_authenticated %}
                         <a href="{% url 'lk' %}" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Личный кабинет</a>
                     {% else %}
-                        <a href="{% url 'login' %}" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Войти</a>
+                        <a href="{% url 'auth' %}" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Войти</a>
                     {% endif %}
                 {% endblock %}
             </div>
