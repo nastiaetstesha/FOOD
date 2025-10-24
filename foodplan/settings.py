@@ -32,6 +32,10 @@ INSTALLED_APPS = [
     'foodplan_app',
 ]
 
+LOGIN_URL = 'auth'
+LOGIN_REDIRECT_URL = 'lk'
+LOGOUT_REDIRECT_URL = 'index'
+
 AUTH_USER_MODEL = "foodplan_app.User"
 
 MIDDLEWARE = [
@@ -113,11 +117,10 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 MEDIA_URL = "/media/"
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'lk'
-LOGOUT_REDIRECT_URL = 'index'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'

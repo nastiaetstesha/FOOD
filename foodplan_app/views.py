@@ -1,11 +1,14 @@
 from django.shortcuts import render, redirect
-from .models import MenuType, FoodTag, UserPage, Subscription
+from django.contrib.auth import login, authenticate
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import logout
+from .models import MenuType, FoodTag, UserPage, Subscription, User
+from .forms import EmailAuthenticationForm, CustomUserCreationForm
 
 from django.utils import timezone
+
 try:
-    from .models import PromoCode   # если модели нет — продолжит работать без скидки
+    from .models import PromoCode  # если модели нет — всё продолжит работать без скидки
 except Exception:
     PromoCode = None
 from django.db.models.fields.related import ForeignKey
@@ -14,59 +17,55 @@ from django.db.models.fields.related import ForeignKey
 def index(request):
     return render(request, 'index.html')
 
+
 def auth_view(request):
-    return render(request, 'registration/auth.html')
+    if request.user.is_authenticated:
+        return redirect('lk')
+
+    if request.method == 'POST':
+        form = EmailAuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            messages.success(request, f'Добро пожаловать, {user.username}!')
+
+            next_url = request.POST.get('next') or request.GET.get('next') or 'lk'
+            return redirect(next_url)
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{error}')
+    else:
+        form = EmailAuthenticationForm()
+
+    next_url = request.GET.get('next', '')
+
+    return render(request, 'registration/auth.html', {
+        'form': form,
+        'next': next_url
+    })
+
 
 def registration_view(request):
-    return render(request, 'registration/registration.html')
+    if request.user.is_authenticated:
+        return redirect('lk')
 
-# @login_required
-# def order_view(request):
-#     menu_types = MenuType.objects.all()
-#     allergies = FoodTag.objects.all()
-    
-#     if request.method == 'POST':
-#         menu_type_ids = request.POST.getlist('foodtype')  # ИЗМЕНИТЬ: getlist для множественного выбора
-#         months = int(request.POST.get('months', 1))
-#         persons = int(request.POST.get('persons', 1))
-#         breakfast = request.POST.get('breakfast') == '1'
-#         lunch = request.POST.get('lunch') == '1'
-#         dinner = request.POST.get('dinner') == '1'
-#         dessert = request.POST.get('dessert') == '1'
-#         selected_allergies = request.POST.getlist('allergies')
-#         user_page, created = UserPage.objects.get_or_create(
-#             user=request.user,
-#             defaults={'username': request.user.username}
-#         )
-        
-#         user_page.allergies.set(FoodTag.objects.filter(id__in=selected_allergies))
-        
-#         Subscription.objects.filter(user=user_page).delete()
-        
-#         subscription = Subscription.objects.create(
-#             user=user_page,
-#             months=months,
-#             persons=persons,
-#             breakfast=breakfast,
-#             lunch=lunch,
-#             dinner=dinner,
-#             dessert=dessert,
-#             price=calculate_price(months, persons, breakfast, lunch, dinner, dessert)
-#         )
-        
-#         selected_menu_types = MenuType.objects.filter(id__in=menu_type_ids)
-#         subscription.menu_types.set(selected_menu_types)
-        
-#         user_page.menu_types.set(selected_menu_types)
-#         user_page.is_subscribed = True
-#         user_page.save()
-        
-#         return redirect('lk')
-    
-#     return render(request, 'orders/order.html', {
-#         'menu_types': menu_types,
-#         'allergies': allergies
-#     })
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            UserPage.objects.create(user=user, username=user.username)
+            login(request, user)
+            messages.success(request, f'Аккаунт создан для {user.username}!')
+            return redirect('lk')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{error}')
+    else:
+        form = CustomUserCreationForm()
+
+    return render(request, 'registration/registration.html', {'form': form})
 
 
 @login_required
@@ -77,6 +76,7 @@ def order_view(request):
     if request.method == 'POST':
         action = request.POST.get('action')
 
+        # можно выбрать несколько типов меню
         menu_type_ids = request.POST.getlist('foodtype')
         selected_menu_types = MenuType.objects.filter(id__in=menu_type_ids)
 
@@ -89,12 +89,16 @@ def order_view(request):
         selected_allergies = request.POST.getlist('allergies')
         promocode = (request.POST.get('promocode') or '').strip()
 
-        # --- НОВОЕ: считаем базовую цену и применяем промокод ---
+        # считаем базовую цену и применяем промокод
         base_price = calculate_price(months, persons, breakfast, lunch, dinner, dessert)
         final_price, promo_obj, applied = apply_promocode_if_any(base_price, promocode)
 
-        # Если пользователь нажал "Применить" — просто показать пересчитанную цену и остаться на странице
+        # "Применить" — просто показать пересчитанную цену и остаться на странице
         if action == 'apply':
+            if applied:
+                messages.success(request, 'Промокод применён.')
+            elif promocode:
+                messages.warning(request, 'Промокод не применён.')
             return render(
                 request,
                 'orders/order.html',
@@ -105,15 +109,15 @@ def order_view(request):
                 },
             )
 
-        # Дальше — "Оплатить"
+        # "Оплатить" (нужно, чтобы был выбран тип меню)
         if not selected_menu_types.exists():
+            messages.warning(request, 'Выберите тип меню.')
             return render(
                 request,
                 'orders/order.html',
                 {
                     'menu_types': menu_types,
                     'allergies': allergies,
-                    'error': 'Выберите тип меню',
                     'price': final_price,
                 },
             )
@@ -121,25 +125,29 @@ def order_view(request):
         # профиль пользователя
         user_page, _ = UserPage.objects.get_or_create(
             user=request.user,
-            defaults={'username': request.user.username},
+            defaults={'username': request.user.username}
         )
-
         # аллергии
         user_page.allergies.set(FoodTag.objects.filter(id__in=selected_allergies))
 
         # заменяем прошлую подписку новой
         Subscription.objects.filter(user=user_page).delete()
 
-        promo_field = Subscription._meta.get_field('promocode')
-        is_fk = isinstance(promo_field, ForeignKey)
-
+        # значение для поля промокода (FK или CharField)
         promo_value_for_save = None
+        try:
+            promo_field = Subscription._meta.get_field('promocode')
+            is_fk = isinstance(promo_field, ForeignKey)
+        except Exception:
+            is_fk = False
+
         if applied:
             if is_fk:
                 promo_value_for_save = promo_obj
             else:
                 promo_value_for_save = getattr(promo_obj, "code", None) if promo_obj else (promocode or None)
 
+        # создаём подписку с финальной ценой
         subscription = Subscription.objects.create(
             user=user_page,
             months=months,
@@ -152,41 +160,41 @@ def order_view(request):
             promocode=promo_value_for_save,
         )
 
-        # отметить выбранное меню у профиля
+        # привязываем выбранные типы меню к подписке и профилю
         subscription.menu_types.set(selected_menu_types)
         user_page.menu_types.set(selected_menu_types)
         user_page.is_subscribed = True
         user_page.save()
 
+        messages.success(request, 'Подписка успешно оформлена!')
         return redirect('lk')
 
-    return render(
-        request,
-        'orders/order.html',
-        {
-            'menu_types': menu_types,
-            'allergies': allergies,
-        },
-    )
-
+    # GET
+    return render(request, 'orders/order.html', {
+        'menu_types': menu_types,
+        'allergies': allergies
+    })
 
 
 @login_required
 def lk_view(request):
-    user_page, created = UserPage.objects.get_or_create(
-        user=request.user,
-        defaults={'username': request.user.username}
-    )
-    
+    try:
+        user_page = UserPage.objects.get(user=request.user)
+    except UserPage.DoesNotExist:
+        user_page = UserPage.objects.create(
+            user=request.user,
+            username=request.user.username
+        )
+
     active_subscription = user_page.subscription.first()
-    
     safe_recipes = user_page.get_safe_recipes()
-    
+
     return render(request, 'accounts/lk.html', {
         'user_page': user_page,
         'active_subscription': active_subscription,
         'safe_recipes_count': safe_recipes.count(),
     })
+
 
 def calculate_price(months, persons, breakfast, lunch, dinner, dessert):
     prices = {
@@ -195,9 +203,9 @@ def calculate_price(months, persons, breakfast, lunch, dinner, dessert):
         6: {'breakfast': 300, 'lunch': 900, 'dinner': 600, 'dessert': 300},
         12: {'breakfast': 400, 'lunch': 1200, 'dinner': 800, 'dessert': 400}
     }
-    
+
     month_prices = prices.get(months, prices[1])
-    
+
     total_price = 0
     if breakfast:
         total_price += month_prices['breakfast']
@@ -207,13 +215,13 @@ def calculate_price(months, persons, breakfast, lunch, dinner, dessert):
         total_price += month_prices['dinner']
     if dessert:
         total_price += month_prices['dessert']
-    
+
     total_price *= persons
-    
+
     return total_price
 
 
-# --- добавлено: хелпер применения промокода ---
+# --- хелпер применения промокода ---
 def apply_promocode_if_any(base_price: int, promocode_raw: str):
     """
     Возвращает (final_price, promo_obj, applied)
@@ -255,10 +263,5 @@ def recipe_detail(request, recipe_id):
         template = 'recipes/card3.html'
     else:
         template = 'recipes/card1.html'
-    
+
     return render(request, template, {'recipe_id': recipe_id})
-
-
-def logout_view(request):
-    logout(request)
-    return redirect('index')
