@@ -3,6 +3,13 @@ from .models import MenuType, FoodTag, UserPage, Subscription
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 
+from django.utils import timezone
+try:
+    from .models import PromoCode   # если модели нет — продолжит работать без скидки
+except Exception:
+    PromoCode = None
+from django.db.models.fields.related import ForeignKey
+
 
 def index(request):
     return render(request, 'index.html')
@@ -68,9 +75,10 @@ def order_view(request):
     allergies = FoodTag.objects.all()
 
     if request.method == 'POST':
-        # тип(ы) меню из формы; берём первый отмеченный
+        action = request.POST.get('action')
+
         menu_type_ids = request.POST.getlist('foodtype')
-        selected_menu_type = MenuType.objects.filter(id__in=menu_type_ids).first()
+        selected_menu_types = MenuType.objects.filter(id__in=menu_type_ids)
 
         months = int(request.POST.get('months', 1))
         persons = int(request.POST.get('persons', 1))
@@ -81,8 +89,24 @@ def order_view(request):
         selected_allergies = request.POST.getlist('allergies')
         promocode = (request.POST.get('promocode') or '').strip()
 
-        if not selected_menu_type:
-            # ничего не выбрали — вернём форму с сообщением
+        # --- НОВОЕ: считаем базовую цену и применяем промокод ---
+        base_price = calculate_price(months, persons, breakfast, lunch, dinner, dessert)
+        final_price, promo_obj, applied = apply_promocode_if_any(base_price, promocode)
+
+        # Если пользователь нажал "Применить" — просто показать пересчитанную цену и остаться на странице
+        if action == 'apply':
+            return render(
+                request,
+                'orders/order.html',
+                {
+                    'menu_types': menu_types,
+                    'allergies': allergies,
+                    'price': final_price,
+                },
+            )
+
+        # Дальше — "Оплатить"
+        if not selected_menu_types.exists():
             return render(
                 request,
                 'orders/order.html',
@@ -90,6 +114,7 @@ def order_view(request):
                     'menu_types': menu_types,
                     'allergies': allergies,
                     'error': 'Выберите тип меню',
+                    'price': final_price,
                 },
             )
 
@@ -105,21 +130,31 @@ def order_view(request):
         # заменяем прошлую подписку новой
         Subscription.objects.filter(user=user_page).delete()
 
+        promo_field = Subscription._meta.get_field('promocode')
+        is_fk = isinstance(promo_field, ForeignKey)
+
+        promo_value_for_save = None
+        if applied:
+            if is_fk:
+                promo_value_for_save = promo_obj
+            else:
+                promo_value_for_save = getattr(promo_obj, "code", None) if promo_obj else (promocode or None)
+
         subscription = Subscription.objects.create(
             user=user_page,
-            menu_type=selected_menu_type,
             months=months,
             persons=persons,
             breakfast=breakfast,
             lunch=lunch,
             dinner=dinner,
             dessert=dessert,
-            price=calculate_price(months, persons, breakfast, lunch, dinner, dessert),
-            promocode=promocode or None,
+            price=final_price,
+            promocode=promo_value_for_save,
         )
 
         # отметить выбранное меню у профиля
-        user_page.menu_type = selected_menu_type
+        subscription.menu_types.set(selected_menu_types)
+        user_page.menu_types.set(selected_menu_types)
         user_page.is_subscribed = True
         user_page.save()
 
@@ -176,6 +211,40 @@ def calculate_price(months, persons, breakfast, lunch, dinner, dessert):
     total_price *= persons
     
     return total_price
+
+
+# --- добавлено: хелпер применения промокода ---
+def apply_promocode_if_any(base_price: int, promocode_raw: str):
+    """
+    Возвращает (final_price, promo_obj, applied)
+    promo_obj — объект PromoCode (если модель есть и код валиден), иначе None.
+    applied — True/False, применялась ли скидка.
+    """
+    promocode_raw = (promocode_raw or "").strip()
+    if not promocode_raw:
+        return base_price, None, False
+
+    if PromoCode is None:
+        return base_price, None, False
+
+    promo = PromoCode.objects.filter(code__iexact=promocode_raw, is_active=True).first()
+    if not promo:
+        return base_price, None, False
+
+    today = timezone.now().date()
+    if hasattr(promo, "valid_from") and promo.valid_from and today < promo.valid_from:
+        return base_price, None, False
+    if hasattr(promo, "valid_to") and promo.valid_to and today > promo.valid_to:
+        return base_price, None, False
+
+    try:
+        discount = int(getattr(promo, "discount_percent", 0))
+    except Exception:
+        discount = 0
+
+    final_price = int(round(base_price * (100 - max(0, min(discount, 100))) / 100))
+    return final_price, promo, True
+
 
 def recipe_detail(request, recipe_id):
     if recipe_id == 1:

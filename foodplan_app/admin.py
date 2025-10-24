@@ -11,6 +11,7 @@ from .models import (
     UserPage,
     MenuType,
     Subscription,
+    PromoCode,
 )
 from django.utils.html import format_html
 
@@ -227,3 +228,10 @@ class DailyMenuAdmin(admin.ModelAdmin):
 class PriceRangeAdmin(admin.ModelAdmin):
     list_display = ["name", "min_price", "max_price"]
     search_fields = ["name"]
+
+
+@admin.register(PromoCode)
+class PromoCodeAdmin(admin.ModelAdmin):
+    list_display = ('code', 'discount_percent', 'is_active', 'valid_from', 'valid_to')
+    list_filter = ('is_active',)
+    search_fields = ('code',)

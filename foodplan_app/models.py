@@ -326,6 +326,39 @@ class Meta:
     ordering = ["username"]
 
 
+class PromoCode(models.Model):
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Код промокода"
+    )
+    discount_percent = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Скидка (%)"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Активен"
+    )
+    valid_from = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Действует с"
+    )
+    valid_to = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Действует до"
+    )
+
+    def __str__(self):
+        return f"{self.code} (-{self.discount_percent}%)"
+
+    class Meta:
+        verbose_name = "Промокод"
+        verbose_name_plural = "Промокоды"
+
+
 class Subscription(models.Model): 
     base_price = models.DecimalField(
         verbose_name="Базовая стоимость подписки, руб",
@@ -377,10 +410,17 @@ class Subscription(models.Model):
         default=0.00,
         validators=[MinValueValidator(0)],
     )
-    
-    promocode = models.CharField(max_length=255, verbose_name="Промокод", blank=True, null=True)
-    
-    
+
+    promocode = models.ForeignKey(
+        PromoCode,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        verbose_name="Промокод",
+        related_name="subscriptions"
+    )
+
+
     class Meta:
         verbose_name = "Подписка"
         verbose_name_plural = "Подписки"
