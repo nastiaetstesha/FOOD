@@ -142,3 +142,4 @@ cython_debug/
 
 .parcel-cache/
 .DS_Store
+.idea/

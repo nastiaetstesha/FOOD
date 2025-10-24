@@ -4,8 +4,11 @@
 {% block title %}FoodPlan - Оформление заказа{% endblock %}
 
 {% block nav_buttons %}
-<h3 class="text-secondary mt-2 me-2">Стоимость: 00000₽</h3>
-<button form="order" type="submit" class="btn shadow-none btn-sm btn-outline-success foodplan_green foodplan__border_green">Оплатить</button>
+<h3 id="priceDisplay" class="text-secondary mt-2 me-2">Стоимость: {{ price|default:"0" }}₽</h3>
+<button form="order" type="submit" name="action" value="pay"
+        class="btn shadow-none btn-sm btn-outline-success foodplan_green foodplan__border_green">
+  Оплатить
+</button>
 {% endblock %}
 
 {% block content %}
@@ -89,7 +92,6 @@
                             <option value="3">3</option>
                             <option value="4">4</option>
                             <option value="5">5</option>
-                            <option value="6">6</option>
                         </select>
                     </td>
                 </tr>
@@ -113,19 +115,21 @@
         <button type="submit" id="TableSubmit" class="d-none"></button>
         </form>
 
-        <form class="card d-flex flex-row align-items-baseline mb-5 p-3 foodplan__bg_grey">
+        <div class="card d-flex flex-row align-items-baseline mb-5 p-3 foodplan__bg_grey">
             <label for="promocode" class="form-label me-2">Промокод</label>
-            <input type="text" class="form-control me-2" id="promocode" name="promocode">
-            <button type="submit" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Применить</button>
-        </form>
+            <input type="text" class="form-control me-2" id="promocode" name="promocode" form="order" placeholder="FOOD10">
+            <button type="submit" form="order" name="action" value="apply" formnovalidate class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Применить</button>
+        </div>
         <div class="d-flex justify-content-center my-5">
-            <button form="order" type="submit" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green w-50">Оплатить</button>
+            <button form="order" type="submit" name="action" value="pay" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green w-50">Оплатить</button>
         </div>
     </div>
 </section>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const serverPrice = "{{ price|default:'' }}";
+
     const updatePrice = () => {
         const months = parseInt(document.getElementById('months').value);
         const persons = parseInt(document.getElementById('persons').value);
@@ -152,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         totalPrice *= persons;
         
-        const priceElement = document.querySelector('.text-secondary.mt-2.me-2');
+        const priceElement = document.getElementById('priceDisplay');
         priceElement.textContent = `Стоимость: ${totalPrice}₽`;
     };
     
@@ -161,6 +165,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.meal-select').forEach(select => {
         select.addEventListener('change', updatePrice);
     });
-    updatePrice();
+
+    if (serverPrice === "") {
+        updatePrice();
+    }
 });
 </script>{% endblock %}
