@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}FoodPlan - Доступные блюда{% endblock %}
+
+{% block nav_buttons %}
+    <a href="{% url 'lk' %}" class="btn btn-outline-primary shadow-none foodplan_green foodplan__border_green me-2">Назад в ЛК</a>
+    <a href="{% url 'logout' %}" class="btn btn-outline-success shadow-none foodplan_green foodplan__border_green">Выйти</a>
+{% endblock %}
+
+{% block content %}
+<section>
+    <div class="container">
+        <div class="row">
+            <div class="card col-12 p-3 mb-5 foodplan__shadow">
+                <div class="mb-3">
+                    <strong><small><a href="{% url 'lk' %}" class="link-secondary fw-light">← Назад в личный кабинет</a></small></strong>
+                </h4>
+                <h2 class="text-center"><strong>Доступные блюда в вашей подписке</strong></h2>
+            </div>
+
+            <div class="col-12 mb-4">
+                <div class="card p-4 foodplan__shadow">
+                    <h4>Информация о подписке</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Типы меню:</strong> 
+                                {% for menu_type in active_subscription.menu_types.all %}
+                                    {{ menu_type.title }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </p>
+                            <p><strong>Приёмы пищи:</strong>
+                                {% if active_subscription.breakfast %}Завтрак {% endif %}
+                                {% if active_subscription.lunch %}Обед {% endif %}
+                                {% if active_subscription.dinner %}Ужин {% endif %}
+                                {% if active_subscription.dessert %}Десерт {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Персоны:</strong> {{ active_subscription.persons }}</p>
+                            <p><strong>Срок:</strong> {{ active_subscription.months }} мес.</p>
+                            <p><strong>Всего доступно блюд:</strong> {{ recipes_count }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if recipes_by_menu_type %}
+                {% for menu_type, recipes in recipes_by_menu_type.items %}
+                    <div class="col-12 mb-4">
+                        <div class="card p-4 foodplan__shadow">
+                            <h4 class="text-success">{{ menu_type.title }}</h4>
+                            <p class="text-muted">Доступно блюд: {{ recipes.count }}</p>
+                            
+                            {% if recipes %}
+                                <div class="row">
+                                    {% for recipe in recipes %}
+                                        <div class="col-md-6 col-lg-4 mb-3">
+                                            <div class="card h-100 foodplan__shadow">
+                                                {% if recipe.image %}
+                                                    <img src="{{ recipe.image.url }}" class="card-img-top" alt="{{ recipe.title }}" style="height: 200px; object-fit: cover;">
+                                                {% else %}
+                                                    <img src="{% static 'img/circle1.png' %}" class="card-img-top" alt="{{ recipe.title }}" style="height: 200px; object-fit: cover;">
+                                                {% endif %}
+                                                <div class="card-body">
+                                                    <h5 class="card-title">{{ recipe.title }}</h5>
+                                                    <p class="card-text">
+                                                        <small class="text-muted">{{ recipe.get_meal_type_display }}</small>
+                                                    </p>
+                                                    <p class="card-text">
+                                                        <small>Калорийность: {{ recipe.calories }} ккал</small><br>
+                                                        <small>Стоимость: {{ recipe.price }} руб.</small>
+                                                    </p>
+                                                    <a href="{% url 'recipe_detail' recipe.id %}" class="btn btn-outline-success btn-sm">Подробнее</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <p class="mb-0">Для этого типа меню пока нет доступных блюд, соответствующих вашим настройкам.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-warning text-center">
+                        <h4>Нет доступных блюд</h4>
+                        <p>Для вашей подписки не найдено блюд, соответствующих выбранным типам меню и аллергиям.</p>
+                        <a href="{% url 'order' %}" class="btn btn-outline-success">Изменить подписку</a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endblock %}

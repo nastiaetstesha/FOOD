@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}FoodPlan - Название рецепта{% endblock %}
+{% block title %}FoodPlan - {{ recipe.title }}{% endblock %}
 
 {% block nav_buttons %}
-<a href="{% url 'index' %}" class="btn btn-outline-success me-2 shadow-none foodplan_green foodplan__border_green">Назад</a>
+<a href="{% url 'subscription_recipes' %}" class="btn btn-outline-success me-2 shadow-none foodplan_green foodplan__border_green">Назад</a>
 {% endblock %}
 
 {% block content %}
@@ -13,30 +13,30 @@
         <div class="row">
             <div class="col-12 col-md-4 d-flex justify-content-center">
                 <div class="card foodplan__card_borderless">
-                    <img src="{% static 'img/circle1.png' %}" alt="Рецепт">
+                    {% if recipe.image %}
+                        <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}">
+                    {% else %}
+                        <img src="{% static 'img/circle1.png' %}" alt="{{ recipe.title }}">
+                    {% endif %}
                 </div>
             </div>
             <div class="col-12 col-md-8 d-flex flex-column justify-content-between">
                 <div class="row">
-                    <h2>Название рецепта</h2>
+                    <h2>{{ recipe.title }}</h2>
                     <div class="col-12 col-sm-6 d-flex flex-column justify-content-between">
-                        <h6>Описание рецепта Lorem ipsum dolor sit amet consectetur adipisicing elit. Excepturi eius nemo voluptatum minus
-                            facilis blanditiis ut architecto rem maiores, aperiam aut debitis repellat quod voluptates natus, laboriosam hic
-                            adipisci non.</h6>
-                        <h6>Рецепт рецепт Lorem ipsum dolor sit amet consectetur adipisicing elit. Excepturi eius nemo voluptatum minus
-                            facilis blanditiis ut architecto rem maiores, aperiam aut debitis repellat quod voluptates natus, laboriosam hic
-                            adipisci non.</h6>
+                        <h6>{{ recipe.description|default:"Описание рецепта отсутствует." }}</h6>
+                        <h6>{{ recipe.sequence|default:"Пошаговая инструкция отсутствует." }}</h6>
                     </div>
                     <div class="col-12 col-sm-6">
                         <small class="link-secondary">Ингредиенты:</small>
                         <ul class="list-group list-group-flush">
-                            <li class="list-group-item disabled"><small>ингредиент (500г.)</small></li>
-                            <li class="list-group-item disabled"><small>ингредиент (500г.)</small></li>
-                            <li class="list-group-item disabled"><small>ингредиент (500г.)</small></li>
-                            <li class="list-group-item disabled"><small>ингредиент (500г.)</small></li>
-                            <li class="list-group-item disabled"><small>ингредиент (500г.)</small></li>
+                            {% for ingredient in recipe.ingredients.all %}
+                                <li class="list-group-item disabled"><small>{{ ingredient.ingredient.name }} ({{ ingredient.mass }}г.)</small></li>
+                            {% empty %}
+                                <li class="list-group-item disabled"><small>Ингредиенты не указаны</small></li>
+                            {% endfor %}
                         </ul>
-                        <small class="link-secondary">Общая калорийность: 1000 ккал</small>
+                        <small class="link-secondary">Общая калорийность: {{ recipe.calories|default:"0" }} ккал</small>
                     </div>
                 </div>
             </div>

@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}FoodPlan - Название рецепта{% endblock %}
+{% block title %}FoodPlan - {{ recipe.title }}{% endblock %}
 
 {% block nav_buttons %}
-<a href="{% url 'index' %}" class="btn btn-outline-success me-2 shadow-none foodplan_green foodplan__border_green">Назад</a>
+<a href="{% url 'subscription_recipes' %}" class="btn btn-outline-success me-2 shadow-none foodplan_green foodplan__border_green">Назад</a>
 {% endblock %}
 
 {% block content %}
@@ -13,19 +13,23 @@
         <div class="row">
             <div class="col-12 col-md-4 d-flex justify-content-center">
                 <div class="card foodplan__card_borderless">
-                    <img src="{% static 'img/circle1.png' %}" alt="Рецепт">
+                    {% if recipe.image %}
+                        <img src="{{ recipe.image.url }}" alt="{{ recipe.title }}">
+                    {% else %}
+                        <img src="{% static 'img/circle1.png' %}" alt="{{ recipe.title }}">
+                    {% endif %}
                 </div>
             </div>
             <div class="col-12 col-md-6 d-flex flex-column justify-content-between">
-                <h2>Название рецепта</h2>
+                <h2>{{ recipe.title }}</h2>
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item">ингредиент (500г.)</li>
-                    <li class="list-group-item">ингредиент (500г.)</li>
-                    <li class="list-group-item">ингредиент (500г.)</li>
-                    <li class="list-group-item">ингредиент (500г.)</li>
-                    <li class="list-group-item">ингредиент (500г.)</li>
+                    {% for ingredient in recipe.ingredients.all %}
+                        <li class="list-group-item">{{ ingredient.ingredient.name }} ({{ ingredient.mass }}г.)</li>
+                    {% empty %}
+                        <li class="list-group-item">Ингредиенты не указаны</li>
+                    {% endfor %}
                 </ul>
-                <h6>Общая калорийность: 1000 ккал</h6>
+                <h6>Общая калорийность: {{ recipe.calories|default:"0" }} ккал</h6>
             </div>
         </div>
     </div>

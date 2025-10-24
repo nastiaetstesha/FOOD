@@ -151,10 +151,16 @@
                                                 </small>
                                             </div>
                                             <div class="d-flex flex-row justify-content-between">
-                                                <small>Типы меню: </small>
+                                                <small>Посмотреть доступные блюда для: </small>
                                                 <small>
                                                     {% if active_subscription.menu_types.all %}
-                                                        {{ active_subscription.menu_types.all|join:", " }}
+                                                        {% for menu_type in active_subscription.menu_types.all %}
+                                                            <a href="{% url 'subscription_recipes' %}" 
+                                                            class="text-decoration-none foodplan_green"
+                                                            title="Посмотреть доступные блюда для {{ menu_type.title }}">
+                                                                {{ menu_type.title }}{% if not forloop.last %}, {% endif %}
+                                                            </a>
+                                                        {% endfor %}
                                                     {% else %}
                                                         не выбраны
                                                     {% endif %}

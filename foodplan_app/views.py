@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .models import MenuType, FoodTag, UserPage, Subscription, User
+from .models import MenuType, FoodTag, UserPage, Subscription, User, Recipe
 from .forms import EmailAuthenticationForm, CustomUserCreationForm
 
 from django.utils import timezone
@@ -177,6 +177,57 @@ def order_view(request):
 
 
 @login_required
+def subscription_recipes_view(request):
+    try:
+        user_page = UserPage.objects.get(user=request.user)
+    except UserPage.DoesNotExist:
+        messages.error(request, 'Страница пользователя не найдена')
+        return redirect('lk')
+    
+    active_subscription = user_page.subscription.first()
+    
+    if not active_subscription:
+        messages.warning(request, 'У вас нет активной подписки')
+        return redirect('lk')
+    
+    safe_recipes = user_page.get_safe_recipes()
+    
+    if active_subscription.menu_types.exists():
+        subscription_recipes = safe_recipes.filter(
+            menu_types__in=active_subscription.menu_types.all()
+        ).distinct()
+    else:
+        subscription_recipes = safe_recipes
+    
+    meal_types = []
+    if active_subscription.breakfast:
+        meal_types.append('breakfast')
+    if active_subscription.lunch:
+        meal_types.append('lunch')
+    if active_subscription.dinner:
+        meal_types.append('dinner')
+    if active_subscription.dessert:
+        meal_types.append('dessert')
+    
+    if meal_types:
+        subscription_recipes = subscription_recipes.filter(meal_type__in=meal_types)
+    
+    recipes_by_menu_type = {}
+    for menu_type in active_subscription.menu_types.all():
+        recipes_by_menu_type[menu_type] = subscription_recipes.filter(
+            menu_types=menu_type
+        )
+    
+    return render(request, 'accounts/subscription_recipes.html', {
+        'user_page': user_page,
+        'active_subscription': active_subscription,
+        'subscription_recipes': subscription_recipes,
+        'recipes_by_menu_type': recipes_by_menu_type,
+        'recipes_count': subscription_recipes.count(),
+    })
+
+
+@login_required
 def lk_view(request):
     try:
         user_page = UserPage.objects.get(user=request.user)
@@ -255,13 +306,18 @@ def apply_promocode_if_any(base_price: int, promocode_raw: str):
 
 
 def recipe_detail(request, recipe_id):
-    if recipe_id == 1:
-        template = 'recipes/card1.html'
-    elif recipe_id == 2:
-        template = 'recipes/card2.html'
-    elif recipe_id == 3:
-        template = 'recipes/card3.html'
-    else:
-        template = 'recipes/card1.html'
-
-    return render(request, template, {'recipe_id': recipe_id})
+    try:
+        recipe = Recipe.objects.get(id=recipe_id)
+        
+        if recipe.id % 3 == 1:
+            template = 'recipes/card1.html'
+        elif recipe.id % 3 == 2:
+            template = 'recipes/card2.html'
+        else:
+            template = 'recipes/card3.html'
+        
+        return render(request, template, {'recipe': recipe})
+        
+    except Recipe.DoesNotExist:
+        messages.error(request, 'Рецепт не найден')
+        return redirect('subscription_recipes')
