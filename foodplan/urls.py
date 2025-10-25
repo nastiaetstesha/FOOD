@@ -16,6 +16,7 @@ urlpatterns = [
     path('recipes/<int:recipe_id>/', recipe_detail, name='recipe_detail'),
     path('logout/', LogoutView.as_view(next_page='index'), name='logout'),
     path('subscription-recipes/', views.subscription_recipes_view, name='subscription_recipes'),
+    path("ajax/check-promocode/", views.ajax_check_promocode, name="check_promocode"),
 ]
 
 if settings.DEBUG:

@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 from django.contrib import messages
@@ -303,6 +304,39 @@ def apply_promocode_if_any(base_price: int, promocode_raw: str):
 
     final_price = int(round(base_price * (100 - max(0, min(discount, 100))) / 100))
     return final_price, promo, True
+
+
+@login_required
+def ajax_check_promocode(request):
+    """
+    GET-параметры:
+      promocode, months, persons, breakfast, lunch, dinner, dessert  (значения '1'/'0')
+    Возвращает JSON: {applied: bool, final_price: int, discount: int}
+    """
+    promocode = (request.GET.get("promocode") or "").strip()
+
+    def as_int(name, default):
+        try:
+            return int(request.GET.get(name, default))
+        except Exception:
+            return default
+
+    months = as_int("months", 1)
+    persons = as_int("persons", 1)
+    breakfast = request.GET.get("breakfast", "1") == "1"
+    lunch     = request.GET.get("lunch", "1") == "1"
+    dinner    = request.GET.get("dinner", "1") == "1"
+    dessert   = request.GET.get("dessert", "1") == "1"
+
+    base_price = calculate_price(months, persons, breakfast, lunch, dinner, dessert)
+    final_price, promo_obj, applied = apply_promocode_if_any(base_price, promocode)
+    discount = int(getattr(promo_obj, "discount_percent", 0)) if applied else 0
+
+    return JsonResponse({
+        "applied": applied,
+        "final_price": final_price,
+        "discount": discount,
+    })
 
 
 def recipe_detail(request, recipe_id):

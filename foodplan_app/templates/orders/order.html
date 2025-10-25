@@ -118,7 +118,7 @@
         <div class="card d-flex flex-row align-items-baseline mb-5 p-3 foodplan__bg_grey">
             <label for="promocode" class="form-label me-2">Промокод</label>
             <input type="text" class="form-control me-2" id="promocode" name="promocode" form="order" placeholder="FOOD10">
-            <button type="submit" form="order" name="action" value="apply" formnovalidate class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Применить</button>
+            <button type="button" id="applyPromo" formnovalidate class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Применить</button>
         </div>
         <div class="d-flex justify-content-center my-5">
             <button form="order" type="submit" name="action" value="pay" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green w-50">Оплатить</button>
@@ -128,12 +128,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const serverPrice = "{{ price|default:'' }}";
+    const priceEl = document.getElementById("priceDisplay");
 
-    const updatePrice = () => {
+      function calcBasePrice() {
         const months = parseInt(document.getElementById('months').value);
         const persons = parseInt(document.getElementById('persons').value);
-        
+
         const breakfast = document.querySelector('select[name="breakfast"]').value === '1';
         const lunch = document.querySelector('select[name="lunch"]').value === '1';
         const dinner = document.querySelector('select[name="dinner"]').value === '1';
@@ -153,21 +153,45 @@ document.addEventListener('DOMContentLoaded', function() {
         if (lunch) totalPrice += monthPrices.lunch;
         if (dinner) totalPrice += monthPrices.dinner;
         if (dessert) totalPrice += monthPrices.dessert;
-        
-        totalPrice *= persons;
-        
-        const priceElement = document.getElementById('priceDisplay');
-        priceElement.textContent = `Стоимость: ${totalPrice}₽`;
-    };
-    
-    document.getElementById('months').addEventListener('change', updatePrice);
-    document.getElementById('persons').addEventListener('change', updatePrice);
-    document.querySelectorAll('.meal-select').forEach(select => {
-        select.addEventListener('change', updatePrice);
+
+        return totalPrice * persons;
+  }
+
+  function updatePriceDisplay(v) {
+    priceEl.textContent = `Стоимость: ${v}₽`;
+  }
+
+  updatePriceDisplay(calcBasePrice());
+
+  document.querySelectorAll("#months, #persons, .meal-select")
+    .forEach(el => el.addEventListener("change", () => {
+      updatePriceDisplay(calcBasePrice());
+    }));
+
+  document.getElementById("applyPromo").addEventListener("click", function () {
+    const params = new URLSearchParams({
+      promocode: document.getElementById("promocode").value.trim(),
+      months: document.getElementById("months").value,
+      persons: document.getElementById("persons").value,
+      breakfast: document.querySelector('select[name="breakfast"]').value,
+      lunch:     document.querySelector('select[name="lunch"]').value,
+      dinner:    document.querySelector('select[name="dinner"]').value,
+      dessert:   document.querySelector('select[name="dessert"]').value
     });
 
-    if (serverPrice === "") {
-        updatePrice();
-    }
+    fetch("{% url 'check_promocode' %}?" + params.toString())
+      .then(r => r.json())
+      .then(data => {
+        updatePriceDisplay(data.final_price);
+        if (data.applied) {
+          alert(`Промокод применён! Скидка ${data.discount}%`);
+        } else {
+          alert("Промокод недействителен");
+        }
+      })
+      .catch(() => {
+        alert("Не удалось проверить промокод. Попробуйте ещё раз.");
+      });
+  });
 });
 </script>{% endblock %}
