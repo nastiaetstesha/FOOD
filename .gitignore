@@ -1,6 +1,5 @@
 bundles/**
 node_modules/
-media/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -143,3 +142,4 @@ cython_debug/
 
 .parcel-cache/
 .DS_Store
+.idea/

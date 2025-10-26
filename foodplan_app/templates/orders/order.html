@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}FoodPlan - Оформление заказа{% endblock %}
+
+{% block nav_buttons %}
+<h3 id="priceDisplay" class="text-secondary mt-2 me-2">Стоимость: {{ price|default:"0" }}₽</h3>
+<button form="order" type="submit" name="action" value="pay"
+        class="btn shadow-none btn-sm btn-outline-success foodplan_green foodplan__border_green">
+  Оплатить
+</button>
+{% endblock %}
+
+{% block content %}
+<section>
+    <div class="container">
+        <h1><strong class="foodplan_green">1 шаг </strong>до первого меню</h1>
+        <h5 class="text-secondary mb-3">Вам будет доступно 4 типа меню: Классическое, Низкоуглеводное, Вегетарианское и Кето.</h5>
+        <div class="row mb-5">
+            {% for menu_type in menu_types %}
+            <div class="col-6 col-md-3">
+                <label for="menu_{{ forloop.counter }}" class="position-relative" style="cursor: pointer;">
+                    {% if menu_type.image %}
+                        <img src="{{ menu_type.image.url }}" alt="{{ menu_type.title }}" class="w-100">
+                    {% else %}
+                        <img src="{% static 'img/menu_classical.png' %}" alt="{{ menu_type.title }}" class="w-100">
+                    {% endif %}
+                    <input form="order" type="radio" name="foodtype" id="menu_{{ forloop.counter }}" value="{{ menu_type.id }}" class="foodplan_selected d-none" required>
+                    <div class="img_selected" id="img{{ forloop.counter }}"></div>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+        <h2><strong>Выберите подходящий тариф</strong></h2>
+        <form id="order" method="POST">
+            {% csrf_token %}
+        <table class="table text-center text-truncate mb-5">
+            <tbody>
+                <tr>
+                    <th scope="row" class="text-start">Срок</th>
+                    <td>
+                        <select class="form-select" name="months" id="months">
+                            <option value="1" selected>1 мес.</option>
+                            <option value="3">3 мес.</option>
+                            <option value="6">6 мес.</option>
+                            <option value="12">12 мес.</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row" class="text-start">Завтраки</th>
+                    <td>
+                        <select name="breakfast" class="form-select meal-select">
+                            <option value="1" selected>&#10004;</option>
+                            <option value="0">&#10008;</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row" class="text-start">Обеды</th>
+                    <td>
+                        <select name="lunch" class="form-select meal-select">
+                            <option value="1" selected>&#10004;</option>
+                            <option value="0">&#10008;</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row" class="text-start">Ужины</th>
+                    <td>
+                        <select name="dinner" class="form-select meal-select">
+                            <option value="1" selected>&#10004;</option>
+                            <option value="0">&#10008;</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row" class="text-start">Десерты</th>
+                    <td>
+                        <select name="dessert" class="form-select meal-select">
+                            <option value="1" selected>&#10004;</option>
+                            <option value="0">&#10008;</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row" class="text-start">Кол-во персон</th>
+                    <td>
+                        <select name="persons" class="form-select" id="persons">
+                            <option value="1" selected>1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row" class="text-start">Аллергии</th>
+                    <td>
+                        {% for allergy in allergies %}
+                        <div class="form-check d-flex justify-content-start">
+                            <input class="form-check-input me-1 foodplan_checked-green" type="checkbox" value="{{ allergy.id }}" name="allergies" id="allergy{{ allergy.id }}">
+                            <label class="form-check-label" for="allergy{{ allergy.id }}">
+                                {{ allergy.name }}
+                            </label>
+                        </div>
+                        {% empty %}
+                        <div class="text-muted">Нет доступных аллергенов для выбора</div>
+                        {% endfor %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <button type="submit" id="TableSubmit" class="d-none"></button>
+        </form>
+
+        <div class="card d-flex flex-row align-items-baseline mb-5 p-3 foodplan__bg_grey">
+            <label for="promocode" class="form-label me-2">Промокод</label>
+            <input type="text" class="form-control me-2" id="promocode" name="promocode" form="order" placeholder="FOOD10">
+            <button type="button" id="applyPromo" formnovalidate class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green">Применить</button>
+        </div>
+        <div class="d-flex justify-content-center my-5">
+            <button form="order" type="submit" name="action" value="pay" class="btn shadow-none btn-outline-success foodplan_green foodplan__border_green w-50">Оплатить</button>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const priceEl = document.getElementById("priceDisplay");
+
+      function calcBasePrice() {
+        const months = parseInt(document.getElementById('months').value);
+        const persons = parseInt(document.getElementById('persons').value);
+
+        const breakfast = document.querySelector('select[name="breakfast"]').value === '1';
+        const lunch = document.querySelector('select[name="lunch"]').value === '1';
+        const dinner = document.querySelector('select[name="dinner"]').value === '1';
+        const dessert = document.querySelector('select[name="dessert"]').value === '1';
+        
+        const prices = {
+            1: { breakfast: 100, lunch: 300, dinner: 200, dessert: 100 },
+            3: { breakfast: 200, lunch: 600, dinner: 400, dessert: 200 },
+            6: { breakfast: 300, lunch: 900, dinner: 600, dessert: 300 },
+            12: { breakfast: 400, lunch: 1200, dinner: 800, dessert: 400 }
+        };
+        
+        const monthPrices = prices[months] || prices[1];
+        
+        let totalPrice = 0;
+        if (breakfast) totalPrice += monthPrices.breakfast;
+        if (lunch) totalPrice += monthPrices.lunch;
+        if (dinner) totalPrice += monthPrices.dinner;
+        if (dessert) totalPrice += monthPrices.dessert;
+
+        return totalPrice * persons;
+  }
+
+  function updatePriceDisplay(v) {
+    priceEl.textContent = `Стоимость: ${v}₽`;
+  }
+
+  updatePriceDisplay(calcBasePrice());
+
+  document.querySelectorAll("#months, #persons, .meal-select")
+    .forEach(el => el.addEventListener("change", () => {
+      updatePriceDisplay(calcBasePrice());
+    }));
+
+  document.getElementById("applyPromo").addEventListener("click", function () {
+    const params = new URLSearchParams({
+      promocode: document.getElementById("promocode").value.trim(),
+      months: document.getElementById("months").value,
+      persons: document.getElementById("persons").value,
+      breakfast: document.querySelector('select[name="breakfast"]').value,
+      lunch:     document.querySelector('select[name="lunch"]').value,
+      dinner:    document.querySelector('select[name="dinner"]').value,
+      dessert:   document.querySelector('select[name="dessert"]').value
+    });
+
+    fetch("{% url 'check_promocode' %}?" + params.toString())
+      .then(r => r.json())
+      .then(data => {
+        updatePriceDisplay(data.final_price);
+        if (data.applied) {
+          alert(`Промокод применён! Скидка ${data.discount}%`);
+        } else {
+          alert("Промокод недействителен");
+        }
+      })
+      .catch(() => {
+        alert("Не удалось проверить промокод. Попробуйте ещё раз.");
+      });
+  });
+});
+</script>{% endblock %}
